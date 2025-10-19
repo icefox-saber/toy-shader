@@ -1,0 +1,7 @@
+build/
+test
+test.cpp
+input.txt
+.vscode/
+./glad
+resources/objects

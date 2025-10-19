@@ -1,0 +1,6 @@
+BasedOnStyle: LLVM
+SortIncludes: false
+IncludeBlocks: Preserve
+IndentWidth: 4
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: Inline
