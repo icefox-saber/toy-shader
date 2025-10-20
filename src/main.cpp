@@ -57,7 +57,6 @@ void renderScene(Shader &shader, Model &scene) {
     model = glm::translate(model, glm::vec3(0.0, -4.0, -5.0)); //本质是世界坐标平移
     model = glm::rotate(model, glm::radians(90.f), {1.f, 0.f, 0.f});
     model = glm::scale(model, glm::vec3(1.0f));
-    
 
     for (unsigned int i = 0; i < scene.meshes.size(); i++) {
         glm::mat4 meshModel = model * scene.meshTransforms[i];
@@ -66,7 +65,7 @@ void renderScene(Shader &shader, Model &scene) {
         scene.meshes[i].BindMaps(shader);
         scene.meshes[i].Draw(shader);
     }
-        
+
     for (unsigned int i = 0; i < MaterialList.size(); i++) {
 
         glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
@@ -141,7 +140,7 @@ int main() {
     glDepthFunc(GL_LEQUAL);
     // enable seamless cubemap sampling for lower mip levels in the pre-filter map.
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-
+    
     // build and compile shaders
     // -------------------------
     Shader pbrShader("./resources/shaders/pbr.vs", "./resources/shaders/pbr.fs");
@@ -498,22 +497,77 @@ int main() {
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // initialize static shader uniforms before rendering
-    // --------------------------------------------------
-
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glCullFace(GL_FRONT);
+    // render scene, supplying the convoluted irradiance map to the final shader.
+    // ------------------------------------------------------------------------------------------
     float near_plane = 1.0f, far_plane = 100.f;
 
     glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-    // glm::mat4 lightProjection = glm::perspective(glm::radians(90.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT,
-    // near_plane, far_plane);
+    glm::mat4 lightView = glm::lookAt(lightPositions, glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f));
+    glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+    simpleDepthShader.use();
+    simpleDepthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+    renderScene(simpleDepthShader, ttm);
+
+    // reset
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+    glCullFace(GL_BACK);
+
+    // initialize static shader uniforms before rendering
+    // --------------------------------------------------
+    glm::mat4 lightModel = glm::mat4(1.0f);
+    lightModel = glm::translate(lightModel, lightPositions);
+    lightModel = glm::scale(lightModel, glm::vec3(0.05f));
     lightShader.use();
     lightShader.setVec3("lightColor", lightColors);
-    lightShader.setFloat("lightIntensity", 1.f);
+    lightShader.setMat4("model", lightModel);
+
+    pbrShader.use();
+    pbrShader.setVec3("lightPositions", lightPositions);
+    pbrShader.setVec3("lightColors", lightColors);
+    pbrShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 
     // then before rendering, configure the viewport to the original framebuffer's screen dimensions
     int scrWidth, scrHeight;
     glfwGetFramebufferSize(window, &scrWidth, &scrHeight);
     glViewport(0, 0, scrWidth, scrHeight);
+
+    glActiveTexture(GL_TEXTURE10);
+    glBindTexture(GL_TEXTURE_2D, gPosition);
+    glActiveTexture(GL_TEXTURE11);
+    glBindTexture(GL_TEXTURE_2D, gAlbedo);
+    glActiveTexture(GL_TEXTURE12);
+    glBindTexture(GL_TEXTURE_2D, gNormal);
+    glActiveTexture(GL_TEXTURE13);
+    glBindTexture(GL_TEXTURE_2D, gMetallicRoughness);
+    glActiveTexture(GL_TEXTURE14);
+    glBindTexture(GL_TEXTURE_2D, gAO);
+    glActiveTexture(GL_TEXTURE15);
+    glBindTexture(GL_TEXTURE_2D, gEmission);
+    glActiveTexture(GL_TEXTURE16);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+    glActiveTexture(GL_TEXTURE17);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+    glActiveTexture(GL_TEXTURE18);
+    glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+    glActiveTexture(GL_TEXTURE19);
+    glBindTexture(GL_TEXTURE_2D, shadowMap);
+    glActiveTexture(GL_TEXTURE20);
+    glBindTexture(GL_TEXTURE_2D, gDepth);
+    glActiveTexture(GL_TEXTURE30);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    const float clearPos[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // w=0 -> invalid
+    const float clearNorm[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    const float clearAlbedo[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    const float clearMR[2] = {0.0f, 0.5f};
+    const float clearAO[1] = {1.0f};
+    const float clearEmission[3] = {0.0f, 0.0f, 0.0f};
+    const float clearDepth[3] = {1.0, 1.0, 1.0};
+    const float one = 1.0f;
 
     // render loop
     // -----------
@@ -529,38 +583,10 @@ int main() {
         processInput(window);
         glm::mat4 projection =
             glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        
-        glCullFace(GL_FRONT);
-        // render scene, supplying the convoluted irradiance map to the final shader.
-        // ------------------------------------------------------------------------------------------
-        glm::vec3 newPos = lightPositions /*+ glm::vec3(sin(glfwGetTime()) * 5.0, 0.0, 0.0)*/;
-
-        glm::mat4 lightView = glm::lookAt(newPos, glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f));
-        glm::mat4 lightSpaceMatrix = lightProjection * lightView;
-        simpleDepthShader.use();
-        simpleDepthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        renderScene(simpleDepthShader, ttm);
-
-        // reset
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-        glCullFace(GL_BACK);
-
-        
         glm::mat4 view = camera.GetViewMatrix();
-        GBufferShader.use();
+
+        // render GBuffer
         glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-        float clearPos[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // w=0 -> invalid
-        float clearNorm[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-        float clearAlbedo[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-        float clearMR[2] = {0.0f, 0.5f};
-        float clearAO[1] = {1.0f};
-        float clearEmission[3] = {0.0f, 0.0f, 0.0f};
-        float clearDepth[3] = {1.0, 1.0, 1.0};
         glClearBufferfv(GL_COLOR, 0, clearPos);
         glClearBufferfv(GL_COLOR, 1, clearNorm);
         glClearBufferfv(GL_COLOR, 2, clearAlbedo);
@@ -568,68 +594,34 @@ int main() {
         glClearBufferfv(GL_COLOR, 4, clearAO);
         glClearBufferfv(GL_COLOR, 5, clearEmission);
         glClearBufferfv(GL_COLOR, 6, clearDepth);
-        float one = 1.0f;
         glClearBufferfv(GL_DEPTH, 0, &one);
+        GBufferShader.use();
         GBufferShader.setMat4("view", view);
         GBufferShader.setMat4("projection", projection);
         // draws the model, and thus all its meshes
         renderScene(GBufferShader, ttm);
 
+        // Render scence
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        pbrShader.use();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        pbrShader.use();
         pbrShader.setVec3("camPos", camera.Position);
-        pbrShader.setVec3("lightPositions", newPos);
-        pbrShader.setVec3("lightColors", lightColors);
-        pbrShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        // bind pre-computed IBL data
-
-        glActiveTexture(GL_TEXTURE10);
-        glBindTexture(GL_TEXTURE_2D, gPosition);
-        glActiveTexture(GL_TEXTURE11);
-        glBindTexture(GL_TEXTURE_2D, gAlbedo);
-        glActiveTexture(GL_TEXTURE12);
-        glBindTexture(GL_TEXTURE_2D, gNormal);
-        glActiveTexture(GL_TEXTURE13);
-        glBindTexture(GL_TEXTURE_2D, gMetallicRoughness);
-        glActiveTexture(GL_TEXTURE14);
-        glBindTexture(GL_TEXTURE_2D, gAO);
-        glActiveTexture(GL_TEXTURE15);
-        glBindTexture(GL_TEXTURE_2D, gEmission);
-        glActiveTexture(GL_TEXTURE16);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-        glActiveTexture(GL_TEXTURE17);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-        glActiveTexture(GL_TEXTURE18);
-        glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
-        glActiveTexture(GL_TEXTURE19);
-        glBindTexture(GL_TEXTURE_2D, shadowMap);
-        glActiveTexture(GL_TEXTURE20);
-        glBindTexture(GL_TEXTURE_2D, gDepth);
-        
-
-        // draws the model, and thus all its meshes
         renderQuad();
 
+        // Draw Light sphere
         lightShader.use();
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, newPos);
-        model = glm::scale(model, glm::vec3(0.05f));
-        lightShader.setMat4("model", model);
         lightShader.setMat4("view", view);
         lightShader.setMat4("projection", projection);
         renderSphere();
 
         // render skybox (render as last to prevent overdraw)
-        backgroundShader.use();
         // Pass 3: Skybox → 仅绘制背景
         glDepthFunc(GL_LEQUAL);
         glDepthMask(GL_FALSE);
+        backgroundShader.use();
         backgroundShader.setMat4("view", view);
         backgroundShader.setMat4("projection", projection);
-        glActiveTexture(GL_TEXTURE30);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+
         // glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap); // display irradiance map
         // glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap); // display prefilter map
         renderCube();
@@ -638,11 +630,11 @@ int main() {
         // render BRDF map to screen
         // brdfShader.use();
         // renderQuad();
-        //TextureShader.use();
-        //TextureShader.setInt("showtexture", 31);
-        //glActiveTexture(GL_TEXTURE31);
-        //glBindTexture(GL_TEXTURE_2D, gDepth);
-        //renderQuad();
+        // TextureShader.use();
+        // TextureShader.setInt("showtexture", 31);
+        // glActiveTexture(GL_TEXTURE31);
+        // glBindTexture(GL_TEXTURE_2D, gDepth);
+        // renderQuad();
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);

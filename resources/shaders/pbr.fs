@@ -20,10 +20,6 @@ uniform sampler2D shadowMap; //19
 uniform sampler2D gDepth; //20
 //uniform sampler2D SSAO; //20
 
-
-
-
-
 // lights
 uniform vec3 lightPositions;
 uniform vec3 lightColors;
@@ -84,7 +80,7 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }   
 
-float ShadowCalculation(vec4 WorldPosLightSpace , vec3 Normal , vec3 WorldPos)
+float PCFShadowCalculation(vec4 WorldPosLightSpace , vec3 Normal , vec3 WorldPos)
 {
     // perform perspective divide
     vec3 projCoords = WorldPosLightSpace.xyz / WorldPosLightSpace.w;
@@ -97,7 +93,7 @@ float ShadowCalculation(vec4 WorldPosLightSpace , vec3 Normal , vec3 WorldPos)
     // calculate bias (based on depth map resolution and slope)
     vec3 normal = normalize(Normal);
     vec3 lightDir = normalize(lightPositions - WorldPos);
-    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.0005);
+    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.005);
     //float bias = 0.0;
     // check whether current frag pos is in shadow
     // float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
@@ -150,7 +146,7 @@ void main()
     vec3 F0 = vec3(0.04); 
     F0 = mix(F0, albedo, metallic);
     // reflectance equation
-    float shadow = ShadowCalculation(WorldPosLightSpace , N , WorldPos);   
+    float shadow = PCFShadowCalculation(WorldPosLightSpace , N , WorldPos);   
 
     vec3 Lo = vec3(0.0);
     {
