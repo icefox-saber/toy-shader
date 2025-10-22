@@ -22,22 +22,21 @@
 #include <map>
 #include <vector>
 
-using namespace std;
 
-unsigned int TextureFromFile(const char *path, const string &directory, bool gamma = false);
+unsigned int TextureFromFile(const char *path, const std::string &directory, bool gamma = false);
 
 class Model {
   public:
     // model data
-    vector<Texture> textures_loaded; // stores all the textures loaded so far, optimization to make sure textures aren't
+    std::vector<Texture> textures_loaded; // stores all the textures loaded so far, optimization to make sure textures aren't
                                      // loaded more than once.
-    vector<Mesh> meshes;
-    vector<glm::mat4> meshTransforms;
-    string directory;
+    std::vector<Mesh> meshes;
+    std::vector<glm::mat4> meshTransforms;
+    std::string directory;
     bool gammaCorrection;
 
     // constructor, expects a filepath to a 3D model.
-    Model(string const &path, bool gamma = false) : gammaCorrection(gamma) { loadModel(path); }
+    Model(std::string const &path, bool gamma = false) : gammaCorrection(gamma) { loadModel(path); }
 
     // draws the model, and thus all its meshes
     void Draw(Shader &shader) {
@@ -52,7 +51,7 @@ class Model {
                          m.d4);
     }
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
-    void loadModel(string const &path) {
+    void loadModel(std::string const &path) {
         // read file via ASSIMP
         Assimp::Importer importer;
         const aiScene *scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals |
@@ -60,7 +59,7 @@ class Model {
         // check for errors
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
         {
-            cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << endl;
+            std::cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << std::endl;
             return;
         }
         // retrieve the directory path of the filepath
@@ -92,9 +91,9 @@ class Model {
 
     Mesh processMesh(aiMesh *mesh, const aiScene *scene) {
         // data to fill
-        vector<Vertex> vertices;
-        vector<unsigned int> indices;
-        vector<Texture> textures(MaterialList.size());
+        std::vector<Vertex> vertices;
+        std::vector<unsigned int> indices;
+        std::vector<Texture> textures(MaterialList.size());
 
         // walk through each of the mesh's vertices
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
@@ -181,7 +180,7 @@ class Model {
 
     // checks all material textures of a given type and loads the textures if they're not loaded yet.
     // the required info is returned as a Texture struct.
-    Texture loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName) {
+    Texture loadMaterialTextures(aiMaterial *mat, aiTextureType type, std::string typeName) {
 
         Texture texture;
         if (!mat->GetTextureCount(type)) {
@@ -205,8 +204,8 @@ class Model {
     }
 };
 
-unsigned int TextureFromFile(const char *path, const string &directory, bool gamma) {
-    string filename = string(path);
+unsigned int TextureFromFile(const char *path, const std::string &directory, bool gamma) {
+    std::string filename = std::string(path);
     filename = directory + '/' + filename;
 
     unsigned int textureID;

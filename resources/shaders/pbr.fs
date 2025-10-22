@@ -5,14 +5,15 @@ out vec4 FragColor;
 in vec2 TexCoords;
 in vec3 WorldPosLightSpace;
 
-// IBL
-// material parameters
+// GBUffers
 uniform sampler2D gPosition; //10
 uniform sampler2D gAlbedo;//11
 uniform sampler2D gNormal;//12
 uniform sampler2D gMetallicRoughness;//13
 uniform sampler2D gAO;//14
 uniform sampler2D gEmission;//15
+
+// environment maps
 uniform samplerCube irradianceMap; //16
 uniform samplerCube prefilterMap; //17
 uniform sampler2D brdfLUTTexture; //18

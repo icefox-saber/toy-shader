@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 #include <map>
-using namespace std;
 
 #define MAX_BONE_INFLUENCE 4
 
@@ -31,7 +30,7 @@ struct Vertex {
     float m_Weights[MAX_BONE_INFLUENCE];
 };
 
-inline const vector<std::pair<string, aiTextureType>> MaterialList{
+inline const std::vector<std::pair<std::string, aiTextureType>> MaterialList{
     {"albedoMap", aiTextureType_BASE_COLOR},                         // 0
     {"normalMap", aiTextureType_NORMALS},                            // 1
     {"metallicRoughnessMap", aiTextureType_GLTF_METALLIC_ROUGHNESS}, // 2
@@ -39,22 +38,24 @@ inline const vector<std::pair<string, aiTextureType>> MaterialList{
     {"emissionMap", aiTextureType_EMISSIVE}                          // 4
 };
 
+inline std::vector<unsigned int> defaultPBRTexture;
+
 struct Texture {
     unsigned int id;
-    string type;
-    string path;
+    std::string type;
+    std::string path;
 };
 
 class Mesh {
   public:
     // mesh Data
-    vector<Vertex> vertices;
-    vector<unsigned int> indices;
-    vector<Texture> textures;
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    std::vector<Texture> textures;
     unsigned int VAO;
 
     // constructor
-    Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures) {
+    Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures) {
         this->vertices = vertices;
         this->indices = indices;
         this->textures = textures;
@@ -62,7 +63,7 @@ class Mesh {
         // now that we have all the required data, set the vertex buffers and its attribute pointers.
         setupMesh();
     }
-    Mesh(vector<Vertex> &&vertices, vector<unsigned int> &&indices, vector<Texture> &&textures) {
+    Mesh(std::vector<Vertex> &&vertices, std::vector<unsigned int> &&indices, std::vector<Texture> &&textures) {
         this->vertices = std::move(vertices);
         this->indices = std::move(indices);
         this->textures = std::move(textures);
@@ -88,7 +89,7 @@ class Mesh {
 
             glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
             // retrieve texture number (the N in diffuse_textureN)
-            string name = MaterialList[i].first;
+            std::string name = MaterialList[i].first;
 
             // now set the sampler to the correct texture unit
             glUniform1i(glGetUniformLocation(shader.ID, (name).c_str()), i);

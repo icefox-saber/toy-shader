@@ -13,6 +13,7 @@
 #include "render.h"
 
 #include <iostream>
+#include <vector>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
@@ -48,7 +49,7 @@ unsigned int make1x1RGB(unsigned char r, unsigned char g, unsigned char b, GLenu
     return tex;
 }
 
-vector<unsigned int> textures;
+std::vector<unsigned int> textures;
 
 void renderScene(Shader &shader, Model &scene) {
     glm::mat4 model = glm::mat4(1.0f);
@@ -70,7 +71,7 @@ void renderScene(Shader &shader, Model &scene) {
 
         glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
         // retrieve texture number (the N in diffuse_textureN)
-        string name = MaterialList[i].first;
+        std::string name = MaterialList[i].first;
 
         // now set the sampler to the correct texture unit
         glUniform1i(glGetUniformLocation(shader.ID, (name).c_str()), i);
@@ -665,7 +666,7 @@ void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS && !Qpressed) {
         Qpressed = true;
         meshnum++;
-        cout << "meshnum:" << meshnum << endl;
+        std::cout << "meshnum:" << meshnum << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_RELEASE) {
         Qpressed = false;
@@ -673,8 +674,8 @@ void processInput(GLFWwindow *window) {
     static bool Epressed = false;
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS && !Epressed) {
         Epressed = true;
-        meshnum = max(meshnum - 1, 0U);
-        cout << "meshnum:" << meshnum << endl;
+        meshnum = std::max(meshnum - 1, 0U);
+        std::cout << "meshnum:" << meshnum << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_RELEASE) {
         Epressed = false;
